@@ -38,13 +38,11 @@ export function parseAnswer(raw) {
   }
   if (!data || typeof data !== "object" || !CATEGORIES.has(data.category)) return null;
 
-  const steps = (Array.isArray(data.steps) ? data.steps : [])
-    .filter((s) => typeof s === "string" && s.trim() && !CLAIM.test(s))
-    .map((s) => s.trim())
-    .slice(0, 6);
+  // Never trim the list here. Cutting a repair short can leave a wheel off the bike.
+  const rawSteps = (Array.isArray(data.steps) ? data.steps : []).filter((s) => typeof s === "string" && s.trim());
+  const steps = rawSteps.filter((s) => !CLAIM.test(s)).map((s) => s.trim());
   const say = cleanSay(data.say);
-  const removed = (Array.isArray(data.steps) ? data.steps.length : 0) - steps.length;
 
   const claimInSay = sentences(data.say).some((s) => CLAIM.test(s));
-  return { category: data.category, say, steps, removedClaims: removed > 0 || claimInSay };
+  return { category: data.category, say, steps, removedClaims: steps.length < rawSteps.length || claimInSay };
 }

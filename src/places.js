@@ -48,6 +48,8 @@ export function rankPlaces(elements, here, limit = 5) {
     })
     .filter(Boolean)
     .sort((a, b) => Number(b.always) - Number(a.always) || a.km - b.km)
+    // A gas station and its shop are often mapped separately. One stop is one result.
+    .filter((p, i, all) => !all.slice(0, i).some((q) => q.name === p.name && distanceKm(p, q) < 0.25))
     .slice(0, limit);
 }
 

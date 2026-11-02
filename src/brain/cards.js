@@ -18,6 +18,20 @@ export const CARDS = [
     ],
   },
   {
+    id: "flat-no-tube",
+    title: "Flat tire, no spare",
+    category: "RIDE",
+    weight: 3, // "no spare tube" has to beat the regular flat card, which also matches "tube".
+    words: ["no spare", "no tube", "no pump", "no patch", "without a tube", "don't have a tube", "dont have a tube", "don't have a pump", "dont have a pump"],
+    say: "No spare means no roadside fix. Walk it. Riding on a flat can wreck the rim.",
+    steps: [
+      "Get off the road to a lit spot.",
+      "Walk the bike. Do not ride on the flat, it can damage the rim.",
+      "Tell someone where you are and where you are headed.",
+      "Head for the nearest lit, open place and sort out a ride that fits a bike.",
+    ],
+  },
+  {
     id: "chain-off",
     title: "Chain came off",
     category: "FIX_IT",
@@ -49,6 +63,7 @@ export const CARDS = [
     title: "E-bike lost power",
     category: "FIX_IT",
     words: ["ebike", "e-bike", "motor", "battery died", "battery dead", "no power", "display off", "controller", "error code"],
+    pin: { text: "If the battery is hot, swollen, smoking or smells, step well away from it and call 911.", unless: /swollen|smok/i },
     say: "E-bike with no power. It still rides as a heavy bike. Check the simple things first.",
     steps: [
       "Stop somewhere lit. If the battery is hot, swollen, smoking or smells, step well away from it and call 911.",
@@ -63,6 +78,7 @@ export const CARDS = [
     title: "No lights",
     category: "SAFE_PLACE",
     words: ["no lights", "light died", "lights died", "lights are out", "lights out", "headlight", "taillight", "cant see", "can't see", "dark road", "too dark"],
+    pin: { text: "Get off the roadway and onto a sidewalk or shoulder.", unless: /roadway|shoulder|sidewalk/i },
     say: "No lights means drivers cannot see you. Do not ride the road dark.",
     steps: [
       "Get off the roadway and onto a sidewalk or shoulder.",
@@ -76,6 +92,7 @@ export const CARDS = [
     title: "Brakes or wheel feel wrong",
     category: "FIX_IT",
     words: ["brake", "brakes", "wobble", "wobbling", "rubbing", "loose wheel", "quick release", "wheel loose", "cable snapped"],
+    pin: { text: "If a wheel or brake fails any check, walk it. Do not ride it home.", unless: /walk it|do not ride/i },
     say: "Stop riding until this is checked. Brakes and wheels are the two things you do not gamble on.",
     steps: [
       "Stop and get off the road.",
@@ -90,6 +107,7 @@ export const CARDS = [
     title: "Feeling unsafe",
     category: "SAFE_PLACE",
     words: ["unsafe", "sketchy", "scared", "creepy", "afraid", "someone behind", "weird guy", "nervous"],
+    pin: { text: "If you are in danger, call 911.", unless: /911/ },
     say: "Trust that. Go to people and light, not home, until it passes.",
     steps: [
       "Head for the nearest open business or busy, lit street.",
@@ -104,6 +122,7 @@ export const CARDS = [
     category: "RIDE",
     weight: 0.4, // A low phone is usually a side note. The actual problem should win the match.
     words: ["phone dying", "phone at", "low battery", "battery low", "percent", "phone dead", "phone is about to die"],
+    pin: { text: "Send your location and your plan to one person, right now.", unless: /location/i },
     say: "Do the one thing that matters first. Tell someone where you are, then save what is left.",
     steps: [
       "Send your location and your plan to one person, right now.",
@@ -123,6 +142,35 @@ export const CARDS = [
       "Find the nearest street sign and read the cross street.",
       "Check whether you already saved this area in your maps app.",
       "Ask inside any open business if the map will not load.",
+    ],
+  },
+  {
+    id: "stolen",
+    title: "Bike stolen",
+    category: "SAFE_PLACE",
+    words: ["stolen", "stole my", "took my bike", "bike is gone", "bike was gone", "bike is missing"],
+    pin: { text: "Do not chase anyone. If someone threatens you, call 911.", unless: /chase|911/i },
+    say: "Do not chase anyone. Get yourself home first. The report can come after.",
+    steps: [
+      "Go somewhere lit and open, and stay there while you sort this out.",
+      "Tell someone what happened and where you are.",
+      "Write down the time, the place and your serial number if you have it.",
+      "Report it to the police non-emergency line when you are safe.",
+      "Ask the store if a camera covers where it was parked.",
+    ],
+  },
+  {
+    id: "walking",
+    title: "Walking home",
+    category: "RIDE",
+    words: ["last bus", "missed the bus", "missed my bus", "missed my ride", "walking home", "walk home", "no ride", "stranded", "on foot"],
+    say: "Stay on the main streets. Longer and lit beats shorter and dark.",
+    steps: [
+      "Stick to lit main streets, and use the sidewalk.",
+      "If there is no sidewalk, walk facing traffic.",
+      "Send someone your route and when you expect to get home.",
+      "Keep your head up and your ears free.",
+      "If it stops feeling right, go into the nearest open business and get a ride from there.",
     ],
   },
   {

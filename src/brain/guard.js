@@ -28,6 +28,7 @@ const EMERGENCY = [
   /\b(?:i|i'?ve|been|got|he|she|they)\s+(?:was |been |got |just )?shot\b(?!\s+(?:past|through|a\b|some|the\b|up|down|out|across))/,
   /\bshot me\b/,
   /\b(?:on fire|battery (?:is )?(?:smoking|exploded|on fire))\b/,
+  /\bbattery\b.{0,40}\b(?:smok\w*|smells?|smelling|swollen|swelling|burning|sparks?|sparking|melting)\b/,
   /\b(?:call|need)\s+(?:an?\s+)?(?:911|ambulance|paramedics?)\b/,
 ];
 

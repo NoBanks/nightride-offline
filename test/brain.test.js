@@ -30,6 +30,19 @@ test("places: 24 hour spots first, then nearest, unnamed dropped", () => {
   assert.equal(ranked[0].always, true);
 });
 
+test("places: same name at the same spot is one result, far apart is two", () => {
+  const here = { lat: 34.5, lon: -117.3 };
+  const ranked = rankPlaces(
+    [
+      { lat: 34.501, lon: -117.3, tags: { amenity: "fuel", name: "Shell" } },
+      { lat: 34.5011, lon: -117.3, tags: { shop: "convenience", name: "Shell" } },
+      { lat: 34.53, lon: -117.3, tags: { amenity: "fuel", name: "Shell" } },
+    ],
+    here,
+  );
+  assert.equal(ranked.length, 2);
+});
+
 test("places: distance is sane", () => {
   const km = distanceKm({ lat: 34.5, lon: -117.3 }, { lat: 34.6, lon: -117.3 });
   assert.ok(km > 11 && km < 11.3, String(km));
@@ -138,6 +151,46 @@ test("router: no model and no signal still gets a real answer", async () => {
   assert.equal(r.route, ROUTE.CARDS);
   assert.equal(r.title, "Flat tire");
   assert.ok(r.steps.length > 3);
+});
+
+test("guard: a smoking or smelly battery is an emergency, a dead one is not", () => {
+  assert.equal(checkEmergency("ebike battery feels really hot and smells weird"), "emergency");
+  assert.equal(checkEmergency("my battery is swollen"), "emergency");
+  assert.equal(checkEmergency("my ebike battery died"), null);
+});
+
+test("sanitizer: long lists are not trimmed and are not called false promises", () => {
+  const steps = Array.from({ length: 10 }, (_, i) => `Step ${i}.`);
+  const a = parseAnswer(JSON.stringify({ category: "FIX_IT", say: "Flat.", steps }));
+  assert.equal(a.steps.length, 10);
+  assert.equal(a.removedClaims, false);
+});
+
+test("router: too many steps gets the whole card, never a cut-off repair", async () => {
+  const steps = Array.from({ length: 10 }, (_, i) => `Step ${i}.`);
+  const r = await ask({ text: "rear tire is flat" }, deps(JSON.stringify({ category: "FIX_IT", say: "Flat.", steps }), "on_device"));
+  assert.equal(r.route, ROUTE.CARDS);
+  assert.equal(r.title, "Flat tire");
+  assert.match(r.steps.at(-1), /spin it/);
+});
+
+test("router: a rambling step gets the card", async () => {
+  const r = await ask({ text: "I missed the last bus" }, deps(JSON.stringify({ category: "RIDE", say: "OK.", steps: ["x".repeat(141)] }), "on_device"));
+  assert.equal(r.route, ROUTE.CARDS);
+  assert.equal(r.title, "Walking home");
+});
+
+test("router: pinned step survives when the model drops it, and is not doubled", async () => {
+  const dropped = await ask({ text: "my phone is at 4 percent" }, deps(JSON.stringify({ category: "RIDE", say: "Low.", steps: ["Reduce brightness."] }), "on_device"));
+  assert.match(dropped.steps[0], /Send your location/);
+  const kept = await ask({ text: "my phone is at 4 percent" }, deps(JSON.stringify({ category: "RIDE", say: "Low.", steps: ["Share your location.", "Reduce brightness."] }), "on_device"));
+  assert.equal(kept.steps.length, 2);
+});
+
+test("cards: the new situations match", () => {
+  assert.equal(matchCard("my front tire went flat, no spare tube").id, "flat-no-tube");
+  assert.equal(matchCard("bike got stolen outside the store").id, "stolen");
+  assert.equal(matchCard("I missed the last bus and I am walking home").id, "walking");
 });
 
 test("router: errors read like words, never raw URLs", async () => {

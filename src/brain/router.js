@@ -12,6 +12,9 @@ export const ROUTE = {
   CARDS: "cards",
 };
 
+const MAX_STEPS = 8;
+const MAX_STEP_CHARS = 140;
+
 const fromCard = (text, reason, started, now) => {
   const card = matchCard(text);
   return { route: ROUTE.CARDS, reason, category: card.category, title: card.title, say: card.say, steps: card.steps, ms: now() - started };
@@ -48,15 +51,27 @@ export async function ask({ text, image = null, mode = "auto" }, deps) {
     return fromCard(text, "Model only offered help it cannot give", started, now);
   }
 
-  const card = answer.steps.length ? null : matchCard(text);
+  // Nobody follows ten steps or a paragraph at the roadside, and shortening it could drop a step.
+  if (answer.steps.length > MAX_STEPS || answer.steps.some((s) => s.length > MAX_STEP_CHARS)) {
+    return fromCard(text, "Model answer was too long to follow at the roadside", started, now);
+  }
+
+  const card = matchCard(text);
   return {
     route,
     reason: reasonFor(route, mode, answer.removedClaims),
     category: answer.category,
-    say: answer.say || card?.say || "",
-    steps: answer.steps.length ? answer.steps : card.steps,
+    say: answer.say || card.say,
+    steps: withPin(answer.steps.length ? answer.steps : card.steps, card),
     ms: now() - started,
   };
+}
+
+// Some steps matter too much to leave to the model. Nano dropped "tell someone where you are"
+// from the dying phone answer, so a card can pin its key step to the top.
+function withPin(steps, card) {
+  if (!card.pin || steps.some((s) => card.pin.unless.test(s))) return steps;
+  return [card.pin.text, ...steps];
 }
 
 // Nano invents parts (it told an e-bike rider to check the "fuse box"), so the matching
