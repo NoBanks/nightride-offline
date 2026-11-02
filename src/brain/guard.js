@@ -13,6 +13,8 @@ const EMERGENCY = [
   /\b(?:broke|broken|snapped|fractured)\b.{0,10}\b(?:arm|leg|wrist|ankle|collarbone|rib|ribs|hip|neck|back|jaw|bone|bones)\b/,
   /\b(?:hit|hurt|cracked|smashed)\s+(?:my|his|her|their)\s+head\b/,
   /\bhead injury\b/,
+  /\b(?:can'?t|cannot|can not) (?:feel|move) my (?:legs?|arms?|hands?|feet|foot|neck|body)\b/,
+  /\b(?:badly|seriously|really) (?:hurt|injured)\b|\bhurt (?:bad|badly)\b/,
   /\b(?:can'?t|cannot|can not|hard to|trouble) (?:breathe|breathing)\b/,
   /\bnot breathing\b/,
   /\bchest pain\b/,

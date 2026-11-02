@@ -1,9 +1,11 @@
 // The hybrid router. Pure logic: the model and the clock are injected, so tests run in Node.
 // Order: guard, then model (on device or cloud, per the SDK), then field cards.
+// The model understands the rider and picks a vetted card. It only writes its own steps
+// when no card fits at all.
 
 import { checkEmergency } from "./guard.js";
 import { parseAnswer } from "./sanitize.js";
-import { matchCard } from "./cards.js";
+import { CARDS, matchCard } from "./cards.js";
 
 export const ROUTE = {
   GUARD: "guard",
@@ -17,7 +19,7 @@ const MAX_STEP_CHARS = 140;
 
 const fromCard = (text, reason, started, now) => {
   const card = matchCard(text);
-  return { route: ROUTE.CARDS, reason, category: card.category, title: card.title, say: card.say, steps: card.steps, ms: now() - started };
+  return { route: ROUTE.CARDS, reason, category: card.category, title: card.title, say: card.say, steps: withPin(card.steps, card), ms: now() - started };
 };
 
 // deps: { generate({prompt, image, mode}) -> {text, source}, now() }
@@ -32,7 +34,7 @@ export async function ask({ text, image = null, mode = "auto" }, deps) {
 
   let out;
   try {
-    out = await deps.generate({ prompt: withNotes(text), image, mode });
+    out = await deps.generate({ prompt: buildPrompt(text), image, mode });
   } catch (err) {
     return fromCard(text, `No model answered: ${shortError(err)}`, started, now);
   }
@@ -42,53 +44,72 @@ export async function ask({ text, image = null, mode = "auto" }, deps) {
 
   const route = out.source === "on_device" ? ROUTE.ON_DEVICE : ROUTE.IN_CLOUD;
 
-  if (answer.category === "EMERGENCY") {
-    return { route: ROUTE.GUARD, kind: "emergency", reason: `Model flagged an emergency (${route})`, ms: now() - started };
-  }
+  // Nano called a snapped chain and a stolen bike emergencies, so only the guard's rules take
+  // over the screen. A model's suspicion gets the right card plus a 911 bar that cannot be missed.
+  const alert = answer.category === "EMERGENCY";
+
+  const picked = CARDS.find((c) => c.id === answer.card);
 
   // The model promised something it cannot do and little is left: the card is better.
-  if (!answer.say && answer.steps.length === 0) {
-    return fromCard(text, "Model only offered help it cannot give", started, now);
+  if (!picked && !answer.say && answer.steps.length === 0) {
+    return { ...fromCard(text, "Model only offered help it cannot give", started, now), alert };
   }
 
-  // Nobody follows ten steps or a paragraph at the roadside, and shortening it could drop a step.
-  if (answer.steps.length > MAX_STEPS || answer.steps.some((s) => s.length > MAX_STEP_CHARS)) {
-    return fromCard(text, "Model answer was too long to follow at the roadside", started, now);
+  // The model passed on every card, but the rider's words plainly match one.
+  const matched = matchCard(text);
+  const card = picked || (matched.id === "general" ? null : matched);
+  if (card) {
+    return {
+      route,
+      reason: reasonFor(route, mode, answer.removedClaims, picked ? "Model picked this card" : "Words matched this card"),
+      category: card.category,
+      title: card.title,
+      cardId: card.id,
+      say: answer.say || card.say,
+      steps: withPin(card.steps, card),
+      alert,
+      ms: now() - started,
+    };
   }
 
-  const card = matchCard(text);
+  if (alert) {
+    return { ...fromCard(text, "Model suspects danger and no card fits", started, now), say: "This could be serious. If it is, call now.", alert };
+  }
+
+  // No card fits. Nobody follows ten steps or a paragraph at the roadside, and shortening
+  // the list could drop a step, so too long means the basic plan instead.
+  if (answer.steps.length === 0 || answer.steps.length > MAX_STEPS || answer.steps.some((s) => s.length > MAX_STEP_CHARS)) {
+    return fromCard(text, "Model answer was not usable at the roadside", started, now);
+  }
   return {
     route,
-    reason: reasonFor(route, mode, answer.removedClaims),
+    reason: reasonFor(route, mode, answer.removedClaims, "No card fits, model wrote these steps"),
     category: answer.category,
-    say: answer.say || card.say,
-    steps: withPin(answer.steps.length ? answer.steps : card.steps, card),
+    say: answer.say || matched.say,
+    steps: answer.steps,
     ms: now() - started,
   };
 }
 
-// Some steps matter too much to leave to the model. Nano dropped "tell someone where you are"
-// from the dying phone answer, so a card can pin its key step to the top.
+// Gemini Nano invents parts and bad advice when it writes repairs itself (a "fuse box" on an
+// e-bike, "do not proceed until the road is dry"), so it chooses from vetted cards instead.
+export function buildPrompt(text) {
+  const list = CARDS.map((c) => `- ${c.id}: ${c.title}`).join("\n");
+  return `Cards:\n${list}\n\nSet card to the one that best fits the rider's main problem. Set card to none only if no card fits. If you pick a card, leave steps empty.\nsay is one short sentence about this rider's specific situation, using only what they said.\n\nThe rider says: ${text}`;
+}
+
+// Some steps matter too much to leave out. A card can pin its key step to the top.
 function withPin(steps, card) {
   if (!card.pin || steps.some((s) => card.pin.unless.test(s))) return steps;
   return [card.pin.text, ...steps];
 }
 
-// Nano invents parts (it told an e-bike rider to check the "fuse box"), so the matching
-// field card goes in as trusted notes. Retrieval that works with no network at all.
-export function withNotes(text) {
-  const card = matchCard(text);
-  if (card.id === "general") return text;
-  const notes = card.steps.map((s) => `- ${s}`).join("\n");
-  return `Trusted repair notes for "${card.title}":\n${notes}\n\nBase your steps on these notes. Do not add parts or tools the notes do not mention unless the rider did.\n\nThe rider says: ${text}`;
-}
-
-function reasonFor(route, mode, removed) {
+function reasonFor(route, mode, removed, how) {
   const base =
     route === ROUTE.ON_DEVICE
       ? mode === "device" ? "Forced on device" : "Nano was ready, nothing left this laptop"
       : mode === "cloud" ? "Forced to cloud" : "Nano not ready, used cloud Gemini";
-  return removed ? `${base}. Removed a promise of outside help.` : base;
+  return `${base}. ${how}.${removed ? " Removed a promise of outside help." : ""}`;
 }
 
 function shortError(err) {

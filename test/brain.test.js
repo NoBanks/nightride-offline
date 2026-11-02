@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { checkEmergency } from "../src/brain/guard.js";
 import { parseAnswer } from "../src/brain/sanitize.js";
 import { matchCard } from "../src/brain/cards.js";
-import { ask, ROUTE, withNotes } from "../src/brain/router.js";
+import { ask, ROUTE, buildPrompt } from "../src/brain/router.js";
 import { rankPlaces, distanceKm, addressCandidates } from "../src/places.js";
 
 test("places: intersections fall back to one street", () => {
@@ -54,11 +54,29 @@ test("sanitizer caps say at two sentences", () => {
   assert.equal(a.removedClaims, false);
 });
 
-test("model gets the matching card as notes, and the rider's words", () => {
-  const p = withNotes("the motor quit on my ebike");
-  assert.match(p, /Trusted repair notes for "E-bike lost power"/);
+test("model gets the card list and the rider's words", () => {
+  const p = buildPrompt("the motor quit on my ebike");
+  assert.match(p, /- ebike: E-bike lost power/);
   assert.match(p, /The rider says: the motor quit on my ebike/);
-  assert.equal(withNotes("asdf"), "asdf");
+});
+
+test("router: picked card supplies the steps, the model only supplies the sentence", async () => {
+  const r = await ask({ text: "my ride is toast" }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "Rear tire, near the shop.", steps: ["Coaster downhill."] }), "on_device"));
+  assert.equal(r.route, ROUTE.ON_DEVICE);
+  assert.equal(r.title, "Flat tire");
+  assert.equal(r.say, "Rear tire, near the shop.");
+  assert.match(r.steps.at(-1), /spin it/);
+  assert.ok(!r.steps.includes("Coaster downhill."));
+});
+
+test("router: an invented card id is ignored", async () => {
+  const r = await ask({ text: "zzz" }, deps(JSON.stringify({ category: "RIDE", card: "pizza", say: "OK.", steps: ["Stop somewhere lit."] }), "on_device"));
+  assert.deepEqual(r.steps, ["Stop somewhere lit."]);
+});
+
+test("router: model says none but the words match, so the vetted card wins", async () => {
+  const r = await ask({ text: "rear tire is flat" }, deps(JSON.stringify({ category: "FIX_IT", card: "none", say: "OK.", steps: ["Coaster downhill."] }), "on_device"));
+  assert.equal(r.title, "Flat tire");
 });
 
 test("guard fires on real emergencies", () => {
@@ -166,25 +184,25 @@ test("sanitizer: long lists are not trimmed and are not called false promises", 
   assert.equal(a.removedClaims, false);
 });
 
-test("router: too many steps gets the whole card, never a cut-off repair", async () => {
+test("router: no card and too many steps gets the basic plan, never a cut-off list", async () => {
   const steps = Array.from({ length: 10 }, (_, i) => `Step ${i}.`);
-  const r = await ask({ text: "rear tire is flat" }, deps(JSON.stringify({ category: "FIX_IT", say: "Flat.", steps }), "on_device"));
+  const r = await ask({ text: "zzz" }, deps(JSON.stringify({ category: "FIX_IT", say: "Hm.", steps }), "on_device"));
   assert.equal(r.route, ROUTE.CARDS);
-  assert.equal(r.title, "Flat tire");
-  assert.match(r.steps.at(-1), /spin it/);
+  assert.equal(r.title, "Get to a safe spot");
 });
 
-test("router: a rambling step gets the card", async () => {
-  const r = await ask({ text: "I missed the last bus" }, deps(JSON.stringify({ category: "RIDE", say: "OK.", steps: ["x".repeat(141)] }), "on_device"));
+test("router: no card and a rambling step gets the basic plan", async () => {
+  const r = await ask({ text: "zzz" }, deps(JSON.stringify({ category: "RIDE", say: "OK.", steps: ["x".repeat(141)] }), "on_device"));
   assert.equal(r.route, ROUTE.CARDS);
-  assert.equal(r.title, "Walking home");
 });
 
-test("router: pinned step survives when the model drops it, and is not doubled", async () => {
-  const dropped = await ask({ text: "my phone is at 4 percent" }, deps(JSON.stringify({ category: "RIDE", say: "Low.", steps: ["Reduce brightness."] }), "on_device"));
-  assert.match(dropped.steps[0], /Send your location/);
-  const kept = await ask({ text: "my phone is at 4 percent" }, deps(JSON.stringify({ category: "RIDE", say: "Low.", steps: ["Share your location.", "Reduce brightness."] }), "on_device"));
-  assert.equal(kept.steps.length, 2);
+test("router: pinned step leads when the card has none, and is not doubled when it does", async () => {
+  const stolen = await ask({ text: "zzz" }, deps(JSON.stringify({ category: "RIDE", card: "stolen", say: "Gone.", steps: [] }), "on_device"));
+  assert.match(stolen.steps[0], /Do not chase/);
+  const phone = await ask({ text: "zzz" }, deps(JSON.stringify({ category: "RIDE", card: "phone", say: "Low.", steps: [] }), "on_device"));
+  assert.equal(phone.steps.filter((s) => /location/i.test(s)).length, 1);
+  const offline = await ask({ text: "my bike got stolen" }, { generate: async () => { throw new Error("offline"); }, now: () => 0 });
+  assert.match(offline.steps[0], /Do not chase/);
 });
 
 test("cards: the new situations match", () => {
@@ -201,9 +219,30 @@ test("router: errors read like words, never raw URLs", async () => {
   assert.equal(quota.reason, "No model answered: cloud quota reached");
 });
 
-test("router: model emergency goes to the emergency screen", async () => {
-  const r = await ask({ text: "ouch" }, deps(JSON.stringify({ category: "EMERGENCY", say: "x", steps: [] }), "on_device"));
-  assert.equal(r.route, ROUTE.GUARD);
+test("router: model suspicion gets the card and a 911 bar, never the full-screen alarm", async () => {
+  const chain = await ask({ text: "My chain snapped" }, deps(JSON.stringify({ category: "EMERGENCY", card: "chain-snap", say: "Chain snapped.", steps: [] }), "on_device"));
+  assert.notEqual(chain.route, ROUTE.GUARD);
+  assert.equal(chain.title, "Chain snapped");
+  assert.equal(chain.alert, true);
+
+  const unknown = await ask({ text: "ouch" }, deps(JSON.stringify({ category: "EMERGENCY", say: "x", steps: [] }), "on_device"));
+  assert.notEqual(unknown.route, ROUTE.GUARD);
+  assert.equal(unknown.alert, true);
+  assert.match(unknown.steps.join(" "), /911/);
+
+  const calm = await ask({ text: "flat tire" }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "Flat.", steps: [] }), "on_device"));
+  assert.equal(calm.alert, false);
+});
+
+test("guard: new injury phrasing, and no false alarm on bike parts", () => {
+  assert.equal(checkEmergency("I can't feel my legs"), "emergency");
+  assert.equal(checkEmergency("I am badly hurt"), "emergency");
+  assert.equal(checkEmergency("I can't move my pedals"), null);
+  assert.equal(checkEmergency("dude the bike just dies when I hit the throttle"), null);
+});
+
+test("cards: a skater gets the skater card", () => {
+  assert.equal(matchCard("skateboard wheel fell off").id, "board");
 });
 
 test("router: answer that was only false promises falls back to a card", async () => {

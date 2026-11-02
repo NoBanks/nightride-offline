@@ -176,6 +176,7 @@ function show(r) {
   $("road-status").textContent = where;
   $("a-cat").textContent = r.title || CATEGORY_LABEL[r.category] || "";
   $("a-src").textContent = `${ROUTE_LABEL[r.route]} / ${secs} s`;
+  $("a-alert").hidden = !r.alert;
   $("a-say").textContent = r.say;
   state.steps = r.steps;
   state.step = 0;

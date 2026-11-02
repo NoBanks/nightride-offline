@@ -44,5 +44,6 @@ export function parseAnswer(raw) {
   const say = cleanSay(data.say);
 
   const claimInSay = sentences(data.say).some((s) => CLAIM.test(s));
-  return { category: data.category, say, steps, removedClaims: steps.length < rawSteps.length || claimInSay };
+  const card = typeof data.card === "string" && data.card !== "none" ? data.card : null;
+  return { category: data.category, card, say, steps, removedClaims: steps.length < rawSteps.length || claimInSay };
 }

@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, Schema } from "firebase/ai";
+import { CARDS } from "./cards.js";
 
 const CLOUD_MODEL = "gemini-3.5-flash-lite";
 
@@ -12,12 +13,13 @@ Never say you will dispatch, send, call or notify anybody. Never say help is com
 Every step is something the person does themselves with their own hands or phone.
 Never give medical advice.
 category is FIX_IT if they can repair it, RIDE if they need a way home, SAFE_PLACE if they should get somewhere lit and open, EMERGENCY if someone is hurt or in danger.
-say is one or two sentences. steps is 3 to 5 short instructions.
-If a photo is included, name the part you see and only describe what is visible.`;
+Only when card is none, steps is 3 to 5 short instructions.
+If a photo is included, name the part you see in say and only describe what is visible.`;
 
 const ANSWER_SCHEMA = Schema.object({
   properties: {
     category: Schema.enumString({ enum: ["FIX_IT", "RIDE", "SAFE_PLACE", "EMERGENCY"] }),
+    card: Schema.enumString({ enum: [...CARDS.map((c) => c.id), "none"] }),
     say: Schema.string(),
     steps: Schema.array({ items: Schema.string() }),
   },

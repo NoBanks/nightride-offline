@@ -145,6 +145,21 @@ export const CARDS = [
     ],
   },
   {
+    id: "board",
+    title: "Skateboard or scooter trouble",
+    category: "RIDE",
+    weight: 2, // "wheel" talk from a skater should not land on a bike card.
+    words: ["skateboard", "longboard", "skate", "scooter", "truck bolt", "bearing"],
+    say: "Stop rolling on it. A loose wheel or truck can throw you. Carry it if you have to.",
+    steps: [
+      "Step off and get out of the road.",
+      "Find the wheel, the nut and any washers. Check back along where you rode.",
+      "With the parts and a tool, put the wheel back on and tighten the nut until the wheel just stops wobbling.",
+      "Spin the wheel, then push the board gently by hand before you stand on it.",
+      "Missing a part or a tool: carry it and walk to a lit, open place.",
+    ],
+  },
+  {
     id: "stolen",
     title: "Bike stolen",
     category: "SAFE_PLACE",
@@ -193,7 +208,7 @@ const FALLBACK = {
   title: "Get to a safe spot",
   category: "SAFE_PLACE",
   words: [],
-  say: "No model is available right now, so here is the basic plan.",
+  say: "Here is the basic plan.",
   steps: [
     "Get off the road to somewhere lit.",
     "Check yourself first, then the bike.",
