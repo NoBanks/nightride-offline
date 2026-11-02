@@ -321,7 +321,7 @@ function renderPlaces(places, note) {
       link.textContent = p.name;
       const meta = document.createElement("div");
       meta.className = "place-meta";
-      meta.textContent = `${p.kind} / ${(p.km * 0.621371).toFixed(1)} mi /${p.always ? "Listed as open 24 hours" : p.hours ? `Hours: ${p.hours}` : "Hours not listed"}`;
+      meta.textContent = `${p.kind} / ${(p.km * 0.621371).toFixed(1)} mi - ${p.always ? "Listed as open 24 hours" : p.hours ? `Hours: ${p.hours}` : "Hours not listed"}`;
       li.append(link, meta);
       return li;
     }),
