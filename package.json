@@ -1,0 +1,23 @@
+{
+  "name": "nightride-offline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A night-ride companion that keeps working when the signal dies. On-device Gemini Nano first, cloud Gemini when there is signal, field cards when there is neither.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/brain.test.js"
+  },
+  "dependencies": {
+    "@fontsource/big-shoulders-display": "^5.3.0",
+    "@fontsource/overpass": "^5.3.0",
+    "@fontsource/overpass-mono": "^5.3.0",
+    "firebase": "^13.2.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}

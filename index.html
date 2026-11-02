@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0806" />
+  <meta name="description" content="A night-ride companion that keeps working when the signal dies." />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <title>NIGHTRIDE Offline</title>
+  <script type="module" src="/src/main.js"></script>
+</head>
+<body data-route="idle" data-signal="unknown">
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand"><span class="word">NIGHTRIDE</span><span class="tag">OFFLINE</span></div>
+    <dl class="gauges">
+      <div><dt>Signal</dt><dd id="g-signal">...</dd></div>
+      <div><dt>On-device AI</dt><dd id="g-model">...</dd></div>
+      <div><dt>Battery</dt><dd id="g-battery">--</dd></div>
+      <div class="clock"><dt>Local</dt><dd id="g-clock">--:--</dd></div>
+    </dl>
+  </header>
+
+  <section class="road" aria-label="Where the last answer came from">
+    <div class="node node-device"><span class="dot"></span><span class="node-label">This laptop</span></div>
+    <div class="lane" aria-hidden="true">
+      <div class="dashes"></div>
+      <div class="beam"></div>
+      <div class="cut"><span>NO SIGNAL</span></div>
+    </div>
+    <div class="node node-cloud"><span class="dot"></span><span class="node-label">Cloud</span></div>
+    <p class="road-status" id="road-status" role="status">Nothing asked yet.</p>
+  </section>
+
+  <main class="stage">
+    <section class="console">
+      <form id="ask" autocomplete="off">
+        <label class="q" for="q">What happened?</label>
+        <textarea id="q" rows="2" placeholder="Chain snapped on Bear Valley Road. Phone at 12 percent."></textarea>
+        <div class="chips" id="chips"></div>
+        <div class="actions">
+          <button type="submit" class="go" id="go"><span>Tell me what to do</span></button>
+          <button type="button" class="tool" id="talk" aria-pressed="false"><span class="tool-k">Hold</span><span>to talk</span></button>
+          <label class="tool" id="photo-label"><span class="tool-k">Show</span><span>a photo</span><input id="photo" type="file" accept="image/*" capture="environment" hidden /></label>
+        </div>
+        <div class="attached" id="attached" hidden>
+          <img id="preview" alt="Attached part" />
+          <span>Photo attached. Stays on this device when the on-device model answers.</span>
+          <button type="button" id="unattach">Remove</button>
+        </div>
+      </form>
+
+      <article class="answer" id="answer" hidden aria-live="polite">
+        <header class="answer-head">
+          <span class="cat" id="a-cat"></span>
+          <span class="src" id="a-src"></span>
+        </header>
+        <p class="say" id="a-say"></p>
+        <ol class="steps" id="a-steps"></ol>
+        <div class="step-nav" id="a-nav">
+          <button type="button" id="prev">Back</button>
+          <span id="a-count" class="count"></span>
+          <button type="button" id="next" class="next">Next step</button>
+          <button type="button" id="speak">Read it to me</button>
+        </div>
+      </article>
+
+      <div class="more">
+        <button type="button" class="wide" id="open-places"><b>Get me somewhere</b><small>Real places from the map. Saved for later.</small></button>
+        <button type="button" class="wide" id="open-tell"><b>Tell my people</b><small>Drafts a text. You send it.</small></button>
+      </div>
+
+      <section class="panel" id="places" hidden>
+        <h2>Places near you</h2>
+        <label for="where">Where are you?</label>
+        <input id="where" placeholder="Bear Valley Road, Victorville" />
+        <div class="row">
+          <button type="button" id="find" class="go slim"><span>Search this place</span></button>
+          <button type="button" id="find-here" class="tool"><span class="tool-k">Use</span><span>my location</span></button>
+        </div>
+        <p id="places-note" class="note" hidden></p>
+        <ul id="places-list" class="places" hidden></ul>
+        <p class="note">Map data &copy; OpenStreetMap contributors</p>
+      </section>
+
+      <section class="panel" id="tell" hidden>
+        <h2>Tell my people</h2>
+        <label for="msg">Message</label>
+        <textarea id="msg" rows="3"></textarea>
+        <div class="row">
+          <button type="button" id="draft" class="tool"><span class="tool-k">Draft</span><span>from what I said</span></button>
+          <button type="button" id="share-loc" class="tool"><span class="tool-k">Add</span><span>my location</span></button>
+        </div>
+        <div class="row">
+          <a id="sms" class="go slim" href="sms:"><span>Open in texts</span></a>
+          <button type="button" id="copy" class="tool"><span class="tool-k">Copy</span><span>message</span></button>
+        </div>
+        <p class="note">NIGHTRIDE never sends anything by itself.</p>
+      </section>
+    </section>
+
+    <aside class="log">
+      <div class="log-head">
+        <h2>Route log</h2>
+        <div class="seg" role="radiogroup" aria-label="Routing mode">
+          <button type="button" data-mode="auto" aria-pressed="true">Auto</button>
+          <button type="button" data-mode="device" aria-pressed="false">Device</button>
+          <button type="button" data-mode="cloud" aria-pressed="false">Cloud</button>
+        </div>
+      </div>
+      <button type="button" class="ready" id="ready"><span id="ready-text">Warm up on-device AI</span><span class="bar" id="ready-bar"></span></button>
+      <ol id="log" class="rows"></ol>
+      <p class="legal">Not an emergency service. It cannot contact anyone. If you are hurt or in danger, call 911.</p>
+    </aside>
+  </main>
+
+  <div class="siren" id="siren" hidden role="alertdialog" aria-modal="true" aria-labelledby="siren-title">
+    <h1 id="siren-title">Call 911</h1>
+    <a class="siren-btn" id="siren-call" href="tel:911">Dial 911</a>
+    <button type="button" id="siren-back" class="siren-back">I am OK, go back</button>
+  </div>
+
+  <noscript>NIGHTRIDE needs JavaScript. If you are hurt or in danger, call 911.</noscript>
+</body>
+</html>
