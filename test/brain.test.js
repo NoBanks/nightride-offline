@@ -140,6 +140,14 @@ test("router: no model and no signal still gets a real answer", async () => {
   assert.ok(r.steps.length > 3);
 });
 
+test("router: errors read like words, never raw URLs", async () => {
+  const fail = (message) => ({ generate: async () => { throw new Error(message); }, now: () => 0 });
+  const offline = await ask({ text: "flat" }, fail("AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/x: Failed to fetch"));
+  assert.equal(offline.reason, "No model answered: no connection to the cloud");
+  const quota = await ask({ text: "flat" }, fail("AI: Error fetching from https://x.googleapis.com: [429 ] You exceeded your current quota"));
+  assert.equal(quota.reason, "No model answered: cloud quota reached");
+});
+
 test("router: model emergency goes to the emergency screen", async () => {
   const r = await ask({ text: "ouch" }, deps(JSON.stringify({ category: "EMERGENCY", say: "x", steps: [] }), "on_device"));
   assert.equal(r.route, ROUTE.GUARD);

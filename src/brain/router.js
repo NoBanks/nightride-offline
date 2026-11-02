@@ -77,5 +77,10 @@ function reasonFor(route, mode, removed) {
 }
 
 function shortError(err) {
-  return String(err?.message || err || "unknown").replace(/\s+/g, " ").slice(0, 90);
+  const text = String(err?.message || err || "unknown");
+  const status = text.match(/\[(\d{3})\b/)?.[1];
+  if (status === "429") return "cloud quota reached";
+  if (status) return `cloud error ${status}`;
+  if (/fetch|network|offline/i.test(text)) return "no connection to the cloud";
+  return text.replace(/https?:\S+/g, "").replace(/\s+/g, " ").trim().slice(0, 70);
 }
