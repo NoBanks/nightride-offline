@@ -217,8 +217,11 @@ $("prev").addEventListener("click", () => {
 });
 
 // Recorded clips are plain files, so the human voice works with no signal and no model.
+const CLIP_START_LIMIT_MS = 2500;
 let playing = null;
+let voiceRun = 0; // Anything left over from an older press must stay silent.
 function stopVoice() {
+  voiceRun += 1;
   playing?.pause();
   playing = null;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
@@ -228,6 +231,12 @@ function playClip(id) {
   return new Promise((resolve, reject) => {
     const a = new Audio(`/voice/${id}.mp3`);
     playing = a;
+    // A stalled clip must not leave someone standing in silence.
+    const limit = setTimeout(() => {
+      a.pause();
+      reject(new Error("clip did not start"));
+    }, CLIP_START_LIMIT_MS);
+    a.onplaying = () => clearTimeout(limit);
     a.onended = resolve;
     a.onerror = reject;
     a.play().catch(reject);
@@ -246,14 +255,16 @@ function speakWithDevice(words) {
 
 $("speak").addEventListener("click", async () => {
   stopVoice();
+  const run = voiceRun;
+  const stepClip = state.clips?.steps[state.step];
   const firstStep = state.step === 0;
   const words = [firstStep ? $("a-say").textContent : "", state.steps[state.step]].filter(Boolean).join(" ");
   if (!state.clips) return speakWithDevice(words);
   try {
     if (firstStep) await playClip(state.clips.say);
-    await playClip(state.clips.steps[state.step]);
+    if (run === voiceRun) await playClip(stepClip);
   } catch {
-    speakWithDevice(words);
+    if (run === voiceRun) speakWithDevice(words);
   }
 });
 
