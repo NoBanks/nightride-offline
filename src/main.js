@@ -7,7 +7,8 @@ import "@fontsource/overpass/latin-700";
 import "@fontsource/overpass-mono/latin-400";
 import "@fontsource/overpass-mono/latin-600";
 import "./styles.css";
-import { ask, ROUTE } from "./brain/router.js";
+import { ask, chooseCard, ROUTE } from "./brain/router.js";
+import { CARDS } from "./brain/cards.js";
 import { generate, readyDeviceModel, draftMessage } from "./brain/firebase.js";
 import { geocode, findPlaces, savedPlaces } from "./places.js";
 import { startSignalWatch, deviceModelStatus } from "./signal.js";
@@ -177,7 +178,12 @@ function show(r) {
   $("a-cat").textContent = r.title || CATEGORY_LABEL[r.category] || "";
   $("a-src").textContent = `${ROUTE_LABEL[r.route]} / ${secs} s`;
   $("a-alert").hidden = !r.alert;
+  $("a-seen").hidden = !r.seen;
+  $("a-seen").textContent = r.seen ? `In your photo: ${r.seen}` : "";
   $("a-say").textContent = r.say;
+  $("a-other-wrap").open = false;
+  stopVoice();
+  state.clips = r.clips || null;
   state.steps = r.steps;
   state.step = 0;
   const ol = $("a-steps");
@@ -209,17 +215,61 @@ $("prev").addEventListener("click", () => {
   state.step = Math.max(state.step - 1, 0);
   renderStep();
 });
-$("speak").addEventListener("click", () => {
+
+// Recorded clips are plain files, so the human voice works with no signal and no model.
+let playing = null;
+function stopVoice() {
+  playing?.pause();
+  playing = null;
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+
+function playClip(id) {
+  return new Promise((resolve, reject) => {
+    const a = new Audio(`/voice/${id}.mp3`);
+    playing = a;
+    a.onended = resolve;
+    a.onerror = reject;
+    a.play().catch(reject);
+  });
+}
+
+function speakWithDevice(words) {
   if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  const words = [$("a-say").textContent, state.steps[state.step]].filter(Boolean).join(" ");
   const u = new SpeechSynthesisUtterance(words);
   u.rate = 0.95;
   // Prefer a voice that lives on the device so this keeps working with no signal.
   const local = speechSynthesis.getVoices().find((v) => v.localService && v.lang.startsWith("en"));
   if (local) u.voice = local;
   speechSynthesis.speak(u);
+}
+
+$("speak").addEventListener("click", async () => {
+  stopVoice();
+  const firstStep = state.step === 0;
+  const words = [firstStep ? $("a-say").textContent : "", state.steps[state.step]].filter(Boolean).join(" ");
+  if (!state.clips) return speakWithDevice(words);
+  try {
+    if (firstStep) await playClip(state.clips.say);
+    await playClip(state.clips.steps[state.step]);
+  } catch {
+    speakWithDevice(words);
+  }
 });
+
+const others = $("a-other");
+for (const card of CARDS) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "chip";
+  b.textContent = card.title;
+  b.addEventListener("click", () => {
+    const r = chooseCard(card.id);
+    addLog(card.title, r);
+    show(r);
+  });
+  others.append(b);
+}
 
 function addLog(text, r) {
   const li = document.createElement("li");
@@ -459,6 +509,8 @@ if (!import.meta.env.DEV && "serviceWorker" in navigator) {
       .getEntriesByType("resource")
       .map((e) => e.name)
       .filter((u) => u.startsWith(location.origin));
-    reg.active?.postMessage({ type: "cache", urls: [location.pathname, ...urls] });
+    // The voice pack has to be on the device before the signal dies, not after.
+    const clips = await fetch("/voice/manifest.json").then((res) => (res.ok ? res.json() : [])).catch(() => []);
+    reg.active?.postMessage({ type: "cache", urls: [location.pathname, ...urls, ...clips.map((id) => `/voice/${id}.mp3`)] });
   });
 }

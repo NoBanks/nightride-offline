@@ -203,7 +203,7 @@ export const CARDS = [
   },
 ];
 
-const FALLBACK = {
+export const FALLBACK = {
   id: "general",
   title: "Get to a safe spot",
   category: "SAFE_PLACE",

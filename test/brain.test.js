@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { checkEmergency } from "../src/brain/guard.js";
 import { parseAnswer } from "../src/brain/sanitize.js";
 import { matchCard } from "../src/brain/cards.js";
-import { ask, ROUTE, buildPrompt } from "../src/brain/router.js";
+import { ask, ROUTE, buildPrompt, chooseCard } from "../src/brain/router.js";
 import { rankPlaces, distanceKm, addressCandidates } from "../src/places.js";
 
 test("places: intersections fall back to one street", () => {
@@ -60,13 +60,32 @@ test("model gets the card list and the rider's words", () => {
   assert.match(p, /The rider says: the motor quit on my ebike/);
 });
 
-test("router: picked card supplies the steps, the model only supplies the sentence", async () => {
-  const r = await ask({ text: "my ride is toast" }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "Rear tire, near the shop.", steps: ["Coaster downhill."] }), "on_device"));
+test("router: a picked card speaks for itself, and the model cannot put words on it", async () => {
+  const r = await ask({ text: "my ride is toast" }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "This is an emergency.", steps: ["Coaster downhill."] }), "on_device"));
   assert.equal(r.route, ROUTE.ON_DEVICE);
   assert.equal(r.title, "Flat tire");
-  assert.equal(r.say, "Rear tire, near the shop.");
+  assert.match(r.say, /^Flat tire\. Get to a lit spot/);
+  assert.equal(r.seen, "");
   assert.match(r.steps.at(-1), /spin it/);
   assert.ok(!r.steps.includes("Coaster downhill."));
+});
+
+test("router: with a photo, the model's words show as what it saw", async () => {
+  const r = await ask({ text: "what is this", image: { mimeType: "image/jpeg", base64: "x" } }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "A rear tire, flat at the bottom.", steps: [] }), "on_device"));
+  assert.equal(r.seen, "A rear tire, flat at the bottom.");
+  assert.match(r.say, /^Flat tire\./);
+});
+
+test("router: clips line up with the steps, pin included", () => {
+  const stolen = chooseCard("stolen");
+  assert.equal(stolen.clips.steps.length, stolen.steps.length);
+  assert.equal(stolen.clips.steps[0], "stolen_pin");
+  assert.equal(stolen.clips.steps[1], "stolen_s1");
+  const flat = chooseCard("flat");
+  assert.equal(flat.clips.steps.length, flat.steps.length);
+  assert.equal(flat.clips.steps[0], "flat_s1");
+  assert.equal(flat.reason, "Rider chose this card");
+  assert.equal(chooseCard("pizza"), null);
 });
 
 test("router: an invented card id is ignored", async () => {

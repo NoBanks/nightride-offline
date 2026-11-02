@@ -17,10 +17,27 @@ export const ROUTE = {
 const MAX_STEPS = 8;
 const MAX_STEP_CHARS = 140;
 
-const fromCard = (text, reason, started, now) => {
-  const card = matchCard(text);
-  return { route: ROUTE.CARDS, reason, category: card.category, title: card.title, say: card.say, steps: withPin(card.steps, card), ms: now() - started };
-};
+// Everything a vetted card shows, plus which recorded clip goes with each line.
+function cardContent(card) {
+  const pinned = withPin(card.steps, card);
+  const stepClips = card.steps.map((_, i) => `${card.id}_s${i + 1}`);
+  return {
+    category: card.category,
+    title: card.title,
+    cardId: card.id,
+    say: card.say,
+    steps: pinned,
+    clips: { say: `${card.id}_say`, steps: pinned.length > card.steps.length ? [`${card.id}_pin`, ...stepClips] : stepClips },
+  };
+}
+
+const fromCard = (text, reason, started, now) => ({ route: ROUTE.CARDS, reason, ...cardContent(matchCard(text)), ms: now() - started });
+
+// The rider knows better than any model. Used by "Wrong problem? Pick another".
+export function chooseCard(id) {
+  const card = CARDS.find((c) => c.id === id);
+  return card ? { route: ROUTE.CARDS, reason: "Rider chose this card", ...cardContent(card), ms: 0 } : null;
+}
 
 // deps: { generate({prompt, image, mode}) -> {text, source}, now() }
 export async function ask({ text, image = null, mode = "auto" }, deps) {
@@ -62,11 +79,10 @@ export async function ask({ text, image = null, mode = "auto" }, deps) {
     return {
       route,
       reason: reasonFor(route, mode, answer.removedClaims, picked ? "Model picked this card" : "Words matched this card"),
-      category: card.category,
-      title: card.title,
-      cardId: card.id,
-      say: answer.say || card.say,
-      steps: withPin(card.steps, card),
+      ...cardContent(card),
+      // Nano's own sentence said "This is an emergency" about a snapped chain and "Good." about
+      // pouring rain, so the card speaks. Nano's words only show for what it sees in a photo.
+      seen: image ? answer.say : "",
       alert,
       ms: now() - started,
     };
