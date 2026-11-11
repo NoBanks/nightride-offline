@@ -4,7 +4,7 @@
   "private": true,
   "description": "A night-ride companion that keeps working when the signal dies. On-device Gemini Nano first, cloud Gemini when there is signal, field cards when there is neither.",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

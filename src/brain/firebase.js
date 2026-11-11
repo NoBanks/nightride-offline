@@ -1,6 +1,6 @@
 // Firebase AI Logic wiring. All Gemini access goes through here.
 import { initializeApp } from "firebase/app";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, Schema } from "firebase/ai";
 import { CARDS } from "./cards.js";
 
@@ -56,7 +56,7 @@ function getClient() {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
   }
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "dev-only-no-recaptcha";
-  initializeAppCheck(app, { provider: new ReCaptchaV3Provider(siteKey), isTokenAutoRefreshEnabled: !import.meta.env.DEV });
+  initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: !import.meta.env.DEV });
   ai = getAI(app, { backend: new GoogleAIBackend() });
   return ai;
 }
