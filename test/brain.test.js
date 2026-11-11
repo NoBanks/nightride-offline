@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkEmergency } from "../src/brain/guard.js";
+import { checkEmergency, dangerHint } from "../src/brain/guard.js";
 import { parseAnswer } from "../src/brain/sanitize.js";
 import { matchCard } from "../src/brain/cards.js";
 import { ask, ROUTE, buildPrompt, chooseCard } from "../src/brain/router.js";
@@ -239,10 +239,10 @@ test("router: errors read like words, never raw URLs", async () => {
 });
 
 test("router: model suspicion gets the card and a 911 bar, never the full-screen alarm", async () => {
-  const chain = await ask({ text: "My chain snapped" }, deps(JSON.stringify({ category: "EMERGENCY", card: "chain-snap", say: "Chain snapped.", steps: [] }), "on_device"));
-  assert.notEqual(chain.route, ROUTE.GUARD);
-  assert.equal(chain.title, "Chain snapped");
-  assert.equal(chain.alert, true);
+  const shaky = await ask({ text: "chain snapped and I fell, my knee is bleeding" }, deps(JSON.stringify({ category: "EMERGENCY", card: "chain-snap", say: "Chain snapped.", steps: [] }), "on_device"));
+  assert.notEqual(shaky.route, ROUTE.GUARD);
+  assert.equal(shaky.title, "Chain snapped");
+  assert.equal(shaky.alert, true);
 
   const unknown = await ask({ text: "ouch" }, deps(JSON.stringify({ category: "EMERGENCY", say: "x", steps: [] }), "on_device"));
   assert.notEqual(unknown.route, ROUTE.GUARD);
@@ -251,6 +251,20 @@ test("router: model suspicion gets the card and a 911 bar, never the full-screen
 
   const calm = await ask({ text: "flat tire" }, deps(JSON.stringify({ category: "FIX_IT", card: "flat", say: "Flat.", steps: [] }), "on_device"));
   assert.equal(calm.alert, false);
+});
+
+test("router: the 911 bar needs a hint of danger in the rider's words, not just the model's say-so", async () => {
+  // Nano flagged these three as emergencies in the Nov 2 eval.
+  for (const text of ["My chain snapped", "dude the bike just dies when I hit the throttle", "someone stole my bike from the rack"]) {
+    const r = await ask({ text }, deps(JSON.stringify({ category: "EMERGENCY", card: "none", say: "x", steps: [] }), "on_device"));
+    assert.equal(Boolean(r.alert), false, text);
+  }
+  for (const text of ["I feel dizzy and sick", "a guy keeps watching me at the bus stop", "I'm scared, it's really dark here"]) {
+    const r = await ask({ text }, deps(JSON.stringify({ category: "EMERGENCY", card: "none", say: "x", steps: [] }), "on_device"));
+    assert.equal(r.alert, true, text);
+  }
+  assert.equal(dangerHint("my chain snapped"), false);
+  assert.equal(dangerHint("my wrist hurts"), true);
 });
 
 test("guard: new injury phrasing, and no false alarm on bike parts", () => {

@@ -42,6 +42,22 @@ const CRISIS = [
   /\bend (?:it all|my life)\b/,
 ];
 
+// Weaker than the guard: words that make a model's "this is an emergency" worth a 911 bar.
+// Without one of these, Nano's flag on a snapped chain or a stolen bike is noise.
+const DANGER_HINT = [
+  /\b(?:hurt|hurts|hurting|injur\w*|pain|painful|ouch|ow|bleed\w*|blood|bruis\w*|sprain\w*|swollen|dizzy|faint\w*|sick|vomit\w*|throw(?:ing)? up|numb)\b/,
+  /\b(?:fell|fall|fallen|crash\w*|wreck\w*|knocked|thrown)\b|\b(?:got|was|been|get|getting) hit\b|\bhit me\b/,
+  /\b(?:scared|afraid|terrified|panic\w*|unsafe|danger\w*|threat\w*|weapon|gun|knife|fight\w*)\b/,
+  /\b(?:follow\w*|watching me|stalk\w*|harass\w*|yell\w* at me|grab\w*|corner\w*)\b/,
+  /\b(?:fire|smok\w*|burn\w*|spark\w*|explod\w*)\b/,
+  /\bhelp me\b/,
+];
+
+export function dangerHint(text) {
+  const t = String(text || "").toLowerCase().replace(/[’]/g, "'");
+  return DANGER_HINT.some((r) => r.test(t));
+}
+
 export function checkEmergency(text) {
   const t = String(text || "").toLowerCase().replace(/[’]/g, "'");
   if (CRISIS.some((r) => r.test(t))) return "crisis";

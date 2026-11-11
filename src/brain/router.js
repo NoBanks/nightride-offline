@@ -3,7 +3,7 @@
 // The model understands the rider and picks a vetted card. It only writes its own steps
 // when no card fits at all.
 
-import { checkEmergency } from "./guard.js";
+import { checkEmergency, dangerHint } from "./guard.js";
 import { parseAnswer } from "./sanitize.js";
 import { CARDS, matchCard } from "./cards.js";
 
@@ -62,8 +62,9 @@ export async function ask({ text, image = null, mode = "auto" }, deps) {
   const route = out.source === "on_device" ? ROUTE.ON_DEVICE : ROUTE.IN_CLOUD;
 
   // Nano called a snapped chain and a stolen bike emergencies, so only the guard's rules take
-  // over the screen. A model's suspicion gets the right card plus a 911 bar that cannot be missed.
-  const alert = answer.category === "EMERGENCY";
+  // over the screen. A model's suspicion gets the right card plus a 911 bar that cannot be missed,
+  // but only when the rider's words (or a photo) give it something to go on.
+  const alert = answer.category === "EMERGENCY" && (Boolean(image) || dangerHint(text));
 
   const picked = CARDS.find((c) => c.id === answer.card);
 
